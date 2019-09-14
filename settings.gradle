@@ -1,0 +1,2 @@
+include ':app', ':koup', ':koup:annotation', ':koup:compiler'
+rootProject.name='Koup'
