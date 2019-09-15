@@ -6,7 +6,7 @@ uploadArchives {
 	repositories {
 		mavenDeployer {
 			repository url: "file://${rootDir}/docs/repository/"
-			pom.version = '0.1.1'             // version
+			pom.version = '0.1.2'             // version
 			pom.groupId = 'com.sorrowblue.koup'    // グループ名
 			pom.artifactId = 'compiler' // ライブラリ名
 		}
@@ -22,7 +22,7 @@ dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.3.50"
     implementation project(path: ':koup:annotation')
-//	implementation 'com.sorrowblue.koup:annotation:0.1.1'
+//	implementation 'com.sorrowblue.koup:annotation:0.1.2'
     implementation "com.squareup:kotlinpoet:1.3.0"
     kapt 'com.google.auto.service:auto-service:1.0-rc6'
     implementation 'com.google.auto.service:auto-service:1.0-rc6'
