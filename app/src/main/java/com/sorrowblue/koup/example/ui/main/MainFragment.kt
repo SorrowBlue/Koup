@@ -7,26 +7,28 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.sorrowblue.koup.example.R
+import com.sorrowblue.koup.example.preferences.Koup_UserPreference
+import com.sorrowblue.koup.koup
 
 class MainFragment : Fragment() {
 
-    companion object {
-        fun newInstance() = MainFragment()
-    }
+	companion object {
+		fun newInstance() = MainFragment()
+	}
 
-    private lateinit var viewModel: MainViewModel
+	private var userId by koup(Koup_UserPreference.ID, false)
+	private lateinit var viewModel: MainViewModel
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        return inflater.inflate(R.layout.main_fragment, container, false)
-    }
+	override fun onCreateView(
+		inflater: LayoutInflater, container: ViewGroup?,
+		savedInstanceState: Bundle?
+	): View {
+		return inflater.inflate(R.layout.main_fragment, container, false)
+	}
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        viewModel = ViewModelProviders.of(this).get(MainViewModel::class.java)
-        // TODO: Use the ViewModel
-    }
+	override fun onActivityCreated(savedInstanceState: Bundle?) {
+		super.onActivityCreated(savedInstanceState)
+		viewModel = ViewModelProviders.of(this).get(MainViewModel::class.java)
+	}
 
 }

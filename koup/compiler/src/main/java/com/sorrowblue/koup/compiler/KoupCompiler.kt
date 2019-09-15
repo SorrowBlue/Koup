@@ -1,142 +1,120 @@
 package com.sorrowblue.koup.compiler
 
+import com.google.auto.service.AutoService
 import com.sorrowblue.koup.annotation.SharedPreferenceKoup
-import org.yanex.takenoko.*
 import java.io.File
+import java.util.*
 import javax.annotation.processing.*
 import javax.lang.model.SourceVersion
-import javax.tools.Diagnostic.Kind.*
-import com.google.auto.service.AutoService
-import javax.lang.model.element.*
+import javax.lang.model.element.Element
+import javax.lang.model.element.PackageElement
+import javax.lang.model.element.TypeElement
+import javax.lang.model.element.VariableElement
+import javax.tools.Diagnostic.Kind.ERROR
 
 
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 @SupportedAnnotationTypes("com.sorrowblue.koup.annotation.SharedPreferenceKoup")
-//@SupportedAnnotationTypes("org.kotlin.annotationProcessor.TestAnnotation")
 @SupportedOptions(KoupCompiler.KAPT_KOTLIN_GENERATED_OPTION_NAME)
 @AutoService(Processor::class)
 class KoupCompiler : AbstractProcessor() {
-    companion object {
-        const val KAPT_KOTLIN_GENERATED_OPTION_NAME = "kapt.kotlin.generated"
-    }
+	companion object {
+		const val KAPT_KOTLIN_GENERATED_OPTION_NAME = "kapt.kotlin.generated"
+	}
 
-    override fun process(
-        annotations: MutableSet<out TypeElement>?,
-        roundEnv: RoundEnvironment
-    ): Boolean {
-        val annotatedElements = roundEnv.getElementsAnnotatedWith(SharedPreferenceKoup::class.java)
-        if (annotatedElements.isEmpty()) return false
-        val kaptKotlinGeneratedDir = processingEnv.options[KAPT_KOTLIN_GENERATED_OPTION_NAME] ?: run {
-            processingEnv.messager.printMessage(ERROR, "Can't find the target directory for generated Kotlin files.")
-            return false
-        }
+	override fun process(
+		annotations: MutableSet<out TypeElement>?,
+		roundEnv: RoundEnvironment
+	): Boolean {
+		val annotatedElements = roundEnv.getElementsAnnotatedWith(SharedPreferenceKoup::class.java)
+		if (annotatedElements.isEmpty()) return false
 
-        annotatedElements.forEach {
-            val enclosing = it.enclosingElement
-            val packageElement = enclosing as PackageElement
-            val generatedKtFile = kotlinFile(packageElement.qualifiedName.toString().plus(".preferences")) {
-                this.packageName
-                for (element in annotatedElements) {
-                    val typeElement = element.toTypeElementOrNull() ?: continue
-                    classDeclaration("${it.simpleName}") {
-                        property("prefix", KoType.STRING) {
-                            initializer("\"${it.simpleName}\"")
-                        }
-                    }
-                    property("simpleClassName") {
-                        receiverType(typeElement.qualifiedName.toString())
-                        getterExpression("this::class.java.simpleName")
-                    }
-                }
-            }
+		annotatedElements.forEach {
+			val thisPackage = (it.enclosingElement as PackageElement).qualifiedName.toString()
+			val thisClass = it.simpleName.toString()
 
-            File("$kaptKotlinGeneratedDir/preferences", "testGenerated.kt").apply {
-                parentFile.mkdirs()
-                writeText(generatedKtFile.accept(PrettyPrinter(PrettyPrinterConfiguration())))
-            }
-        }
+			val prefix = it.findField("prefix")
+			generateClass2(thisPackage, thisClass, prefix, it.notFilter("prefix"))
 
 
-        //
-//        roundEnv?.getElementsAnnotatedWith(SharedPreferenceKoup::class.java)
-//            ?.forEach {
-//                val className = it.simpleName.toString()
-//                println("classname=$className")
-//                if (it.kind != ElementKind.PACKAGE) {
-//                    val enclosing = it.enclosingElement
-//                    val packageElement = enclosing as PackageElement
-//                    generateClass2(
-//                        packageElement.qualifiedName.split(".").joinToString("/"),
-//                        className,
-//                        (it.enclosedElements.first {
-//                            it.kind.isField && it.simpleName.toString() == "prefix"
-//                        } as VariableElement).constantValue.toString(),
-//                        it.enclosedElements.filter {
-//                            it.kind.isField && it.simpleName.toString() != "INSTANCE" && it.simpleName.toString() != "prefix"
-//                        }.map {
-//                            val varElement = it as VariableElement
-//                            "object ${varElement.simpleName} : ${className}Pref<${varElement.kotlinPrimitive}>(${varElement.constantAutoValue})"
-//                        }
-//                    )
-//                }
-//            }
+		}
 
-        return true
-    }
 
-    fun Element.toTypeElementOrNull(): TypeElement? {
-        if (this !is TypeElement) {
-            processingEnv.messager.printMessage(ERROR, "Invalid element type, class expected", this)
-            return null
-        }
+		return true
+	}
 
-        return this
-    }
+	override fun getSupportedOptions(): Set<String> {
+		return Collections.singleton("org.gradle.annotation.processing.aggregating")
+	}
 
-    private fun generateClass2(
-        packagename: String,
-        className: String,
-        prefix: String,
-        joinToString: List<String>
-    ) {
-        val fileName = className + "Pref"
+	fun Element.findField(name: String) = (enclosedElements.firstOrNull {
+		it.kind.isField && it.simpleName.toString() == name
+	} as? VariableElement)?.constantValue?.toString()
 
-        val kaptKotlinGeneratedDir =
-            processingEnv.options[KAPT_KOTLIN_GENERATED_OPTION_NAME] + "/" + packagename + "/preferences/"
-        File(kaptKotlinGeneratedDir).mkdirs()
-        val file = File(kaptKotlinGeneratedDir, "$fileName.kt")
+	fun Element.notFilter(name: String) = enclosedElements.filter {
+		it.kind.isField && it.simpleName.toString() != "INSTANCE" && it.simpleName.toString() != name
+	}
 
-        val text = """
-			package ${packagename.split("/").joinToString(".")}.preferences
+	fun Element.toTypeElementOrNull(): TypeElement? {
+		if (this !is TypeElement) {
+			processingEnv.messager.printMessage(ERROR, "Invalid element type, class expected", this)
+			return null
+		}
 
-			import com.sorrowblue.preflin.PreflinInfo
-			
-			sealed class $fileName<T : Any>(def: T) : PreflinInfo<T>(def) {
+		return this
+	}
+
+	private fun generateClass2(
+		packageName: String,
+		className: String,
+		prefix: String?,
+		fieldElements: List<Element>
+	) {
+		val kaptKotlinGeneratedDir = processingEnv.options[KAPT_KOTLIN_GENERATED_OPTION_NAME]
+			?: run {
+				processingEnv.messager.printMessage(ERROR, "Can't find the target directory for generated Kotlin files.")
+				return
+			}
+		val joinToString = fieldElements.map {
+			val varElement = it as VariableElement
+			"object ${varElement.simpleName} : Koup_$className<${varElement.kotlinPrimitive}>(${varElement.constantAutoValue})"
+		}
+		val file = File(kaptKotlinGeneratedDir, "${packageName.replace(".", "/")}/preferences/").let {
+			if (it.exists().not()) {
+				it.mkdirs()
+			}
+			File(it, "Koup_$className.kt")
+		}
+
+		val text = """
+			package $packageName.preferences
+
+			sealed class Koup_$className<T : Any>(def: T, key: String? = null) : com.sorrowblue.koup.KoupInfo<T>(def) {
 				
-				override val prefix = "$prefix"
+				override val prefix = "${prefix ?: className.toUpperCase(Locale.getDefault())}"
 				
 				${joinToString.joinToString("\n\t\t\t\t") { it }}
 			}
 """.trimIndent()
-        file.writeText(text)
-    }
+		file.writeText(text)
+	}
 
-    private val VariableElement.kotlinPrimitive
-        get() = when (val type = asType().toString()) {
-            "int" -> "Int"
-            "java.lang.String" -> "String"
-            "boolean" -> "Boolean"
-            "float" -> "Float"
-            "double" -> "Double"
-            else -> type
-        }
+	private val VariableElement.kotlinPrimitive
+		get() = when (val type = asType().toString()) {
+			"int" -> "Int"
+			"java.lang.String" -> "String"
+			"boolean" -> "Boolean"
+			"float" -> "Float"
+			"double" -> "Double"
+			else -> type
+		}
 
-    private val VariableElement.constantAutoValue
-        get() = when (asType().toString()) {
-            "float" -> "${constantValue}f"
-            "java.lang.String" -> """ "$constantValue" """.trim(' ')
-            else -> constantValue.toString()
-        }
+	private val VariableElement.constantAutoValue
+		get() = when (asType().toString()) {
+			"float" -> "${constantValue}f"
+			"java.lang.String" -> """ "$constantValue" """.trim(' ')
+			else -> constantValue.toString()
+		}
 
 }
 
