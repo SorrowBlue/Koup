@@ -14,7 +14,7 @@
     <dependency>
       <groupId>Koup.koup</groupId>
       <artifactId>annotation</artifactId>
-      <version>unspecified</version>
+      <version>0.1.2</version>
       <scope>runtime</scope>
     </dependency>
     <dependency>
