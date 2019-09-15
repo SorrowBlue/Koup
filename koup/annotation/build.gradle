@@ -1,4 +1,16 @@
 apply plugin: 'kotlin'
+apply plugin: 'maven'
+
+uploadArchives {
+	repositories {
+		mavenDeployer {
+			repository url: "file://${rootDir}/docs/repository/"
+			pom.version = '0.1.0'             // version
+			pom.groupId = 'com.sorrowblue.koup'    // グループ名
+			pom.artifactId = 'annotation' // ライブラリ名
+		}
+	}
+}
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
