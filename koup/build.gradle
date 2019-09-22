@@ -7,7 +7,7 @@ uploadArchives {
 	repositories {
 		mavenDeployer {
 			repository url: "file://${rootDir}/docs/repository/"
-			pom.version = '0.1.2'             // version
+			pom.version = '0.1.3'             // version
 			pom.groupId = 'com.sorrowblue.koup'    // グループ名
 			pom.artifactId = 'koup' // ライブラリ名
 		}
@@ -47,8 +47,8 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.1.0'
     implementation 'androidx.core:core-ktx:1.1.0'
     testImplementation 'junit:junit:4.12'
-//	api 'com.sorrowblue.koup:annotation:0.1.1'
-//	api project(":koup:annotation")
+//	api 'com.sorrowblue.koup:annotation:0.1.2'
+	api project(":koup:annotation")
 	androidTestImplementation 'androidx.test:runner:1.2.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
     implementation 'androidx.preference:preference:1.1.0'

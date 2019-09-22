@@ -7,8 +7,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.sorrowblue.koup.example.R
-import com.sorrowblue.koup.example.preferences.Koup_UserPreference
 import com.sorrowblue.koup.koup
+
+//import com.sorrowblue.koup.example.preferences.Koup_UserPreference
 
 class MainFragment : Fragment() {
 
@@ -16,7 +17,6 @@ class MainFragment : Fragment() {
 		fun newInstance() = MainFragment()
 	}
 
-	private var userId by koup(Koup_UserPreference.ID, false)
 	private lateinit var viewModel: MainViewModel
 
 	override fun onCreateView(

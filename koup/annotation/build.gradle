@@ -5,7 +5,7 @@ uploadArchives {
 	repositories {
 		mavenDeployer {
 			repository url: "file://${rootDir}/docs/repository/"
-			pom.version = '0.1.2'             // version
+			pom.version = '0.1.4'             // version
 			pom.groupId = 'com.sorrowblue.koup'    // グループ名
 			pom.artifactId = 'annotation' // ライブラリ名
 		}
