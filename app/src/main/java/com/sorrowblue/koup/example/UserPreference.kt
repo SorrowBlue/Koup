@@ -4,7 +4,7 @@ import com.sorrowblue.koup.annotation.KoupKey
 import com.sorrowblue.koup.annotation.KoupSharedPreference
 
 @KoupSharedPreference("User")
-object UserPreferencea {
+object UserPreference {
 
 	@KoupKey(key = "TEST_ID")
 	const val ID: Int = -1
