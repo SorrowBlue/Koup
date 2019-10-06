@@ -38,10 +38,10 @@ dependencies {
 	implementation 'androidx.lifecycle:lifecycle-extensions:2.1.0'
 	implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.1.0'
 	testImplementation 'junit:junit:4.12'
-	kapt 'com.sorrowblue.koup:compiler:0.1.4'
-	implementation 'com.sorrowblue.koup:koup:0.1.4'
-	kapt project(":koup:compiler")
-	implementation project(":koup")
+	kapt 'com.sorrowblue.koup:compiler:0.1.5'
+	implementation 'com.sorrowblue.koup:koup:0.1.5'
+//	kapt project(":koup:compiler")
+//	implementation project(":koup")
 	androidTestImplementation 'androidx.test:runner:1.2.0'
 	androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
 }
