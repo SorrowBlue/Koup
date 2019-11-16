@@ -1,8 +1,9 @@
 package com.sorrowblue.koup.compiler
 
 import com.google.auto.service.AutoService
-import com.sorrowblue.koup.annotation.KoupKey
-import com.sorrowblue.koup.annotation.KoupSharedPreference
+import com.sorrowblue.android.kotpref.annotation.KotPref
+import com.sorrowblue.android.kotpref.annotation.KotPrefKey
+import com.sun.corba.se.impl.io.TypeMismatchException
 import java.io.File
 import java.util.*
 import javax.annotation.processing.*
@@ -16,8 +17,8 @@ import javax.tools.Diagnostic.Kind.ERROR
 
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 @SupportedAnnotationTypes(
-	"com.sorrowblue.koup.annotation.KoupSharedPreference",
-	"com.sorrowblue.koup.annotation.KoupKey"
+	"com.sorrowblue.android.kotpref.annotation.KotPref",
+	"com.sorrowblue.android.kotpref.annotation.KotPrefKey"
 )
 @SupportedOptions(KoupCompiler.KAPT_KOTLIN_GENERATED_OPTION_NAME)
 @AutoService(Processor::class)
@@ -31,38 +32,48 @@ class KoupCompiler : AbstractProcessor() {
 		roundEnv: RoundEnvironment
 	): Boolean {
 		val koupSharedPreferences =
-			roundEnv.getElementsAnnotatedWith(KoupSharedPreference::class.java).map {
+			roundEnv.getElementsAnnotatedWith(KotPref::class.java).map {
 				val thisPackage = (it.enclosingElement as PackageElement).qualifiedName.toString()
 				val thisClass = it.simpleName.toString()
 
-				val prefix = it.getAnnotation(KoupSharedPreference::class.java)?.prefix
+				val prefix = it.getAnnotation(KotPref::class.java)?.prefix
+				val suffix = it.getAnnotation(KotPref::class.java).nameSuffix.let {
+					if (it != "") it else null
+				}
 				KoupClass(
 					thisPackage,
 					thisClass,
 					prefix,
+					suffix,
 					it.fields.map {
 						Params(
 							it.simpleName.toString(),
 							(it as VariableElement).kotlinPrimitive,
-							(it as VariableElement).constantAutoValue,
-							""
+							it.constantAutoValue,
+							null,
+							null
 						)
 					}.toMutableList()
 				)
 			}
-		roundEnv.getElementsAnnotatedWith(KoupKey::class.java).map { element ->
+		roundEnv.getElementsAnnotatedWith(KotPrefKey::class.java).map { element ->
 			val thisClass = element.enclosingElement.simpleName.toString()
 			koupSharedPreferences.find { it.className == thisClass }?.let {
 				val fieldName = element.simpleName.toString().replace("\$annotations", "")
 				it.params.forEach {
 					if (it.name == fieldName) {
-						it.key = element.getAnnotation(KoupKey::class.java).key
+						it.key = element.getAnnotation(KotPrefKey::class.java).key.let {
+							if (it != "") it else null
+						}
+						it.resId = element.getAnnotation(KotPrefKey::class.java).resId.let {
+							if (it != 0) it else null
+						}
 					}
 				}
 			}
 		}
-		koupSharedPreferences.forEach {
-			val className = it.className
+		koupSharedPreferences.forEach { ko: KoupClass ->
+			val className = ko.className
 			val kaptKotlinGeneratedDir = processingEnv.options[KAPT_KOTLIN_GENERATED_OPTION_NAME]
 				?: run {
 					processingEnv.messager.printMessage(
@@ -72,21 +83,21 @@ class KoupCompiler : AbstractProcessor() {
 					return@forEach
 				}
 			val file =
-				File(kaptKotlinGeneratedDir, it.packageName.replace(".", "/")).let {
+				File(kaptKotlinGeneratedDir, ko.packageName.replace(".", "/")).let {
 					if (it.exists().not()) {
 						it.mkdirs()
 					}
-					File(it, "Koup_$className.kt")
+					File(it, "$className${ko.suffix ?: "Preference"}.kt")
 				}
-
 			val text = """
-			package ${it.packageName}
+			package ${ko.packageName}
 
-			sealed class Koup_$className<T : Any>(def: T, key: String) : com.sorrowblue.koup.KoupInfo<T>(def, key) {
+			sealed class $className${ko.suffix
+				?: "Preference"}<T : Any>(default: T, key: String? = null, resId: Int? = null) : com.sorrowblue.android.kotpref.KotPrefKey<T>(default, key, resId) {
 				
-				override val prefix = "${it.prefix ?: className.toUpperCase(Locale.getDefault())}"
+				override val prefix = "${ko.prefix ?: className.toUpperCase(Locale.getDefault())}"
 				
-				${it.params.map { (it.toString(className)) }.joinToString("\n\t\t\t\t")}
+				${ko.params.map { (it.toString(ko)) }.joinToString("\n\t\t\t\t")}
 			}
 """.trimIndent()
 			file.writeText(text)
@@ -108,12 +119,13 @@ class KoupCompiler : AbstractProcessor() {
 			"java.lang.String" -> "String"
 			"boolean" -> "Boolean"
 			"float" -> "Float"
+			"long" -> "Long"
 			"double" -> "Double"
 			"java.util.Set<java.lang.String>" -> "Set<String>"
 			else -> {
 				processingEnv.messager.printMessage(ERROR, "Koup is not support $type.")
-//				throw TypeMismatchException("Koup is not support $type.")
-				""
+				throw TypeMismatchException("Koup is not support $type.")
+//				""
 			}
 		}
 
@@ -131,10 +143,21 @@ private data class KoupClass(
 	val packageName: String,
 	val className: String,
 	val prefix: String?,
+	val suffix: String?,
 	val params: MutableList<Params> = mutableListOf()
 )
 
-private data class Params(val name: String, val type: String, var value: String, var key: String?) {
-	fun toString(className: String) =
-		"object $name :	Koup_$className<$type>($value, \"$key\")"
+private data class Params(
+	val name: String,
+	val type: String,
+	var value: String,
+	var key: String?,
+	var resId: Int?
+) {
+	fun toString(co: KoupClass) =
+		key?.let {
+			"object $name :	${co.className}${co.suffix ?: "Preference"}<$type>($value, key = \"$it\")"
+		} ?: resId?.let {
+			"object $name :	${co.className}${co.suffix ?: "Preference"}<$type>($value, resId = $it)"
+		} ?: "object $name :	${co.className}${co.suffix ?: "Preference"}<$type>($value, key = \"$name\")"
 }
